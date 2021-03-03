@@ -8,6 +8,10 @@
   ],
   "main": "src/index.js",
   "dependencies": {
+    "@material-ui/core": "4.11.3",
+    "@material-ui/icons": "4.11.2",
+    "axios": "0.21.1",
+    "material-table": "1.69.2",
     "react": "17.0.1",
     "react-dom": "17.0.1",
     "react-scripts": "4.0.0"
