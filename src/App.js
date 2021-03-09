@@ -37,7 +37,8 @@ import {
   Grid,
   Typography,
   Switch,
-  Chip
+  Chip,
+  Tooltip
 } from "@material-ui/core";
 import _ from "lodash";
 import { makeStyles } from "@material-ui/styles";
@@ -80,106 +81,102 @@ const useStyles = makeStyles((theme) => ({
 }));
 export default function App() {
   const classes = useStyles();
+  const [APIData, setAPIData] = useState(null);
+  const [MTData, setMTData] = useState(null);
   const [fakeData, setFakeData] = useState(null);
-  const [fData, setFData] = useState([]);
+  const [countryFD, setCountryFD] = React.useState(null);
   const [selectedRow, setSelectedRow] = useState(null);
   const [open, setOpen] = React.useState(false);
-  const [countryFD, setCountryFD] = React.useState(null);
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down("xs"));
 
-  const getFakeData = async () => {
+  const getAPIData = async () => {
     console.log("get api");
     const res = await axios.get(`${api.url}?results=10`);
     console.warn("api source", res.data.results);
-    setFakeData(res.data.results);
+    setAPIData(res.data.results);
   };
   useEffect(() => {
-    console.log("setapi");
-    getFakeData();
+    console.log("getapi");
+    getAPIData();
   }, []);
-  const getCountry = (fakeData) => {
+  const getCountry = (APIData) => {
     let country = [];
-    let resData;
-    let finalData;
-    fakeData && fakeData.map((c) => country.push(c.location.state));
-    resData = _.uniq(country);
-    finalData = _.mapKeys(resData.sort(), function (key, value) {
+    APIData && APIData.map((c) => country.push(c.location.state));
+    let resData = _.uniq(country);
+    let finalData = _.mapKeys(resData.sort(), function (key, value) {
       return value;
     });
-    console.log(finalData);
     setCountryFD(finalData);
   };
-  useEffect(() => {
-    console.log("getCountry");
-    getCountry(fakeData);
-  }, [fakeData]);
+  useEffect(() => {}, [fakeData]);
 
-  const getFData = () => {
-    let constData = [];
-    fakeData &&
+  const getFakeData = (APIData, countryFD) => {
+    let data = [];
+    APIData &&
       countryFD &&
-      fakeData.map((data) => {
-        constData.push({
-          id: `${data.id.value}`,
-          name: `${data.name.last}`,
-          address: `${data.location.street.number}, ${data.location.street.name}`,
-          city: `${data.location.city}`,
-          postCode: `${data.location.postcode}`,
-          status: `${data.gender}`,
+      APIData.map((d) => {
+        data.push({
+          id: `${d.id.value}`,
+          name: `${d.name.last}`,
+          address: `${d.location.street.number}, ${d.location.street.name}`,
+          city: `${d.location.city}`,
+          postCode: `${d.location.postcode}`,
+          status: `${d.gender}`,
           state: parseInt(
             Object.keys(countryFD).find(
-              (key) => countryFD[key] === data.location.state
+              (key) => countryFD[key] === d.location.state
             ),
             10
           ),
-          notice: `${data.registered.age}`,
-          category: `${data.dob.age}`
+          notice: `${d.registered.age}`,
+          category: `${d.dob.age}`
         });
-        return constData;
+        return data;
       });
-    setFData(constData);
+    setFakeData(data);
+    setMTData(data);
   };
   useEffect(() => {
+    console.log("getCountry");
+    getCountry(APIData);
     console.log("getFData");
-    getFData();
-  }, [fakeData, countryFD]);
+    getFakeData(APIData, countryFD);
+  }, [APIData, countryFD]);
 
   const handleClose = () => {
     setOpen(false);
   };
-  const handleChangeCLick = (evt, selectedRow) => {
+  const handleClickOpenDialog = (evt, selectedRow) => {
     setSelectedRow(selectedRow);
     setOpen(true);
   };
   const getStatusRendering = (rowData) => {
     if (rowData.tableData.id === 0) {
-      return (
-        <React.Fragment>
-          <Switch checked />
-        </React.Fragment>
-      );
+      return <Switch checked />;
     }
-    return rowData.status === "female" ? <Check /> : <Remove />;
+    return rowData.status === "female" ? (
+      <Tooltip title="female">
+        <Check />
+      </Tooltip>
+    ) : (
+      <Tooltip title="male">
+        <Remove />
+      </Tooltip>
+    );
   };
   const getNoticeRendering = (rowData) => {
     if (rowData.notice <= 5) {
       return (
-        <React.Fragment>
-          <Chip label={rowData.notice} style={{ backgroundColor: "#d50000" }} />
-        </React.Fragment>
+        <Chip label={rowData.notice} style={{ backgroundColor: "#d50000" }} />
       );
     } else if (rowData.notice <= 10) {
       return (
-        <React.Fragment>
-          <Chip label={rowData.notice} style={{ backgroundColor: "#ff9800" }} />
-        </React.Fragment>
+        <Chip label={rowData.notice} style={{ backgroundColor: "#ff9800" }} />
       );
     } else if (rowData.notice > 10) {
       return (
-        <React.Fragment>
-          <Chip label={rowData.notice} style={{ backgroundColor: "#388e3c" }} />
-        </React.Fragment>
+        <Chip label={rowData.notice} style={{ backgroundColor: "#388e3c" }} />
       );
     }
   };
@@ -214,7 +211,7 @@ export default function App() {
       );
     }
   };
-
+  const handleCLickFilter = () => {};
   return (
     <div style={{ maxWidth: "100%" }}>
       {countryFD && (
@@ -246,25 +243,40 @@ export default function App() {
             },
             { title: "Categorie", field: "category", type: "numeric" }
           ]}
-          data={fData}
+          data={MTData}
           components={{
             Row: (props) => {
               return <MTableBodyRow {...props} className={classes.row} />;
             }
           }}
-          onRowClick={(evt, selectedRow) => handleChangeCLick(evt, selectedRow)}
+          onRowClick={(evt, selectedRow) =>
+            handleClickOpenDialog(evt, selectedRow)
+          }
           options={{
             exportButton: true,
             filtering: true
           }}
         />
       )}
+      <Tooltip title="filtre superieur ou egal à 10">
+        <Button
+          color="primary"
+          component="span"
+          onClick={(e) => {
+            handleCLickFilter(e);
+          }}
+        >
+          <FilterList />
+        </Button>
+      </Tooltip>
+
       {selectedRow && (
         <Dialog
           fullScreen={fullScreen}
           open={open}
           onClose={handleClose}
           aria-labelledby="responsive-dialog-title"
+          size="large"
         >
           <DialogTitle id="responsive-dialog-title">
             {"Info ligne selectionné"}
