@@ -1,7 +1,7 @@
 import React, { useState, useEffect, forwardRef } from "react";
 import "./styles.css";
 import axios from "axios";
-import MaterialTable from "material-table";
+import MaterialTable, { MTableBodyRow } from "material-table";
 import {
   AddBox,
   ArrowDownward,
@@ -21,6 +21,7 @@ import {
 } from "@material-ui/icons";
 import {
   Dialog,
+  Box,
   DialogActions,
   DialogContent,
   DialogContentText,
@@ -33,9 +34,13 @@ import {
   ListItemAvatar,
   ListItemText,
   Avatar,
-  Grid
+  Grid,
+  Typography,
+  Switch,
+  Chip
 } from "@material-ui/core";
 import _ from "lodash";
+import { makeStyles } from "@material-ui/styles";
 
 const tableIcons = {
   Add: forwardRef((props, ref) => <AddBox {...props} ref={ref} />),
@@ -64,8 +69,17 @@ const tableIcons = {
 const api = {
   url: "https://randomuser.me/api/"
 };
-
+const useStyles = makeStyles((theme) => ({
+  row: {
+    backgroundColor: "#fff",
+    "&.MuiTableRow-root:hover": {
+      background: "red",
+      color: "#fff"
+    }
+  }
+}));
 export default function App() {
+  const classes = useStyles();
   const [fakeData, setFakeData] = useState(null);
   const [fData, setFData] = useState([]);
   const [selectedRow, setSelectedRow] = useState(null);
@@ -76,17 +90,36 @@ export default function App() {
 
   const getFakeData = async () => {
     console.log("get api");
-    const res = await axios.get(`${api.url}?results=5000`);
+    const res = await axios.get(`${api.url}?results=10`);
+    console.warn("api source", res.data.results);
     setFakeData(res.data.results);
   };
   useEffect(() => {
     console.log("setapi");
     getFakeData();
   }, []);
-  const getFData = (fakeData) => {
+  const getCountry = (fakeData) => {
+    let country = [];
+    let resData;
+    let finalData;
+    fakeData && fakeData.map((c) => country.push(c.location.state));
+    resData = _.uniq(country);
+    finalData = _.mapKeys(resData.sort(), function (key, value) {
+      return value;
+    });
+    console.log(finalData);
+    setCountryFD(finalData);
+  };
+  useEffect(() => {
+    console.log("getCountry");
+    getCountry(fakeData);
+  }, [fakeData]);
+
+  const getFData = () => {
     let constData = [];
     fakeData &&
-      fakeData.map((data) =>
+      countryFD &&
+      fakeData.map((data) => {
         constData.push({
           id: `${data.id.value}`,
           name: `${data.name.last}`,
@@ -94,28 +127,24 @@ export default function App() {
           city: `${data.location.city}`,
           postCode: `${data.location.postcode}`,
           status: `${data.gender}`,
-          state: `${data.location.country}`,
+          state: parseInt(
+            Object.keys(countryFD).find(
+              (key) => countryFD[key] === data.location.state
+            ),
+            10
+          ),
           notice: `${data.registered.age}`,
           category: `${data.dob.age}`
-        })
-      );
+        });
+        return constData;
+      });
     setFData(constData);
   };
   useEffect(() => {
     console.log("getFData");
-    getFData(fakeData);
-  }, [fakeData]);
-  const getCountry = (fData) => {
-    let country = [];
-    fData && fData.map((c) => country.push(c.state));
-    _.mapKeys(country, function(value, key){return key + value} )
-    setCountryFD(_.uniq(country));
-  };
-  useEffect(() => {
-    console.log("getCountry");
-    getCountry(fData);
-  }, [fData]);
-  console.warn("listCountry", JSON.stringify(countryFD));
+    getFData();
+  }, [fakeData, countryFD]);
+
   const handleClose = () => {
     setOpen(false);
   };
@@ -124,48 +153,112 @@ export default function App() {
     setOpen(true);
   };
   const getStatusRendering = (rowData) => {
+    if (rowData.tableData.id === 0) {
+      return (
+        <React.Fragment>
+          <Switch checked />
+        </React.Fragment>
+      );
+    }
     return rowData.status === "female" ? <Check /> : <Remove />;
   };
   const getNoticeRendering = (rowData) => {
-    //return rowData.notice <= 5 ? <StarIcon /> : <StarHalfIcon />;
+    if (rowData.notice <= 5) {
+      return (
+        <React.Fragment>
+          <Chip label={rowData.notice} style={{ backgroundColor: "#d50000" }} />
+        </React.Fragment>
+      );
+    } else if (rowData.notice <= 10) {
+      return (
+        <React.Fragment>
+          <Chip label={rowData.notice} style={{ backgroundColor: "#ff9800" }} />
+        </React.Fragment>
+      );
+    } else if (rowData.notice > 10) {
+      return (
+        <React.Fragment>
+          <Chip label={rowData.notice} style={{ backgroundColor: "#388e3c" }} />
+        </React.Fragment>
+      );
+    }
   };
+  const handleNameChange = (rowData) => {
+    if (rowData.tableData.id === 0) {
+      return (
+        <React.Fragment>
+          <Box>
+            <Typography
+              variant="caption"
+              style={{
+                textDecoration: "line-through",
+                color: "red"
+              }}
+              gutterBottom
+            >
+              {rowData.name}
+            </Typography>
+          </Box>
+          <Box>
+            <Typography variant="caption">{"Alpha"}</Typography>
+          </Box>
+        </React.Fragment>
+      );
+    } else {
+      return (
+        <React.Fragment>
+          <Typography variant="caption" gutterBottom>
+            {rowData.name}
+          </Typography>
+        </React.Fragment>
+      );
+    }
+  };
+
   return (
     <div style={{ maxWidth: "100%" }}>
-      <MaterialTable
-        title="test affichage !"
-        icons={tableIcons}
-        columns={[
-          { title: "Nom", field: "name" },
-          { title: "Adresse", field: "address" },
-          { title: "Ville", field: "city" },
-          {
-            title: "Code postal",
-            field: "postCode"
-          },
-          {
-            title: "Statut",
-            field: "status",
-            render: (rowData) => getStatusRendering(rowData)
-          },
-          { title: "Etat", field: "state", lookup: { countryFD } },
-          {
-            title: "Avis",
-            field: "notice",
-            render: (rowData) => getNoticeRendering(rowData)
-          },
-          { title: "Categorie", field: "category", type: "numeric" }
-        ]}
-        data={fData}
-        onRowClick={(evt, selectedRow) => handleChangeCLick(evt, selectedRow)}
-        options={{
-          rowStyle: (rowData) => ({
-            backgroundColor:
-              selectedRow === rowData.tableData.id ? "#EEE" : "#FFF"
-          }),
-          exportButton: true,
-          filtering: true
-        }}
-      />
+      {countryFD && (
+        <MaterialTable
+          title="test affichage !"
+          icons={tableIcons}
+          columns={[
+            {
+              title: "Nom",
+              field: "name",
+              render: (rowData) => handleNameChange(rowData)
+            },
+            { title: "Adresse", field: "address" },
+            { title: "Ville", field: "city" },
+            {
+              title: "Code postal",
+              field: "postCode"
+            },
+            {
+              title: "Statut",
+              field: "status",
+              render: (rowData) => getStatusRendering(rowData)
+            },
+            { title: "Etat", field: "state", lookup: countryFD },
+            {
+              title: "Avis",
+              field: "notice",
+              render: (rowData) => getNoticeRendering(rowData)
+            },
+            { title: "Categorie", field: "category", type: "numeric" }
+          ]}
+          data={fData}
+          components={{
+            Row: (props) => {
+              return <MTableBodyRow {...props} className={classes.row} />;
+            }
+          }}
+          onRowClick={(evt, selectedRow) => handleChangeCLick(evt, selectedRow)}
+          options={{
+            exportButton: true,
+            filtering: true
+          }}
+        />
+      )}
       {selectedRow && (
         <Dialog
           fullScreen={fullScreen}
