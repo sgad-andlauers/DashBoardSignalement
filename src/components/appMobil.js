@@ -1,21 +1,8 @@
-import React, { useState, useEffect, forwardRef } from "react";
-import axios from "axios";
+import React, { useState, useEffect, useContext } from "react";
+import { DataContext } from "../context/DataContext";
 import {
-  AddBox,
-  ArrowDownward,
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  Clear,
-  DeleteOutline,
-  Edit,
   FilterList,
-  FirstPage,
-  LastPage,
-  Remove,
-  SaveAlt,
   Search,
-  ViewColumn,
   CheckBox,
   CheckBoxOutlineBlank
 } from "@material-ui/icons";
@@ -45,33 +32,22 @@ import Autocomplete from "@material-ui/lab/Autocomplete";
 import _ from "lodash";
 import { makeStyles } from "@material-ui/styles";
 
-const tableIcons = {
-  Add: forwardRef((props, ref) => <AddBox {...props} ref={ref} />),
-  Check: forwardRef((props, ref) => <Check {...props} ref={ref} />),
-  Clear: forwardRef((props, ref) => <Clear {...props} ref={ref} />),
-  Delete: forwardRef((props, ref) => <DeleteOutline {...props} ref={ref} />),
-  DetailPanel: forwardRef((props, ref) => (
-    <ChevronRight {...props} ref={ref} />
-  )),
-  Edit: forwardRef((props, ref) => <Edit {...props} ref={ref} />),
-  Export: forwardRef((props, ref) => <SaveAlt {...props} ref={ref} />),
-  Filter: forwardRef((props, ref) => <FilterList {...props} ref={ref} />),
-  FirstPage: forwardRef((props, ref) => <FirstPage {...props} ref={ref} />),
-  LastPage: forwardRef((props, ref) => <LastPage {...props} ref={ref} />),
-  NextPage: forwardRef((props, ref) => <ChevronRight {...props} ref={ref} />),
-  PreviousPage: forwardRef((props, ref) => (
-    <ChevronLeft {...props} ref={ref} />
-  )),
-  ResetSearch: forwardRef((props, ref) => <Clear {...props} ref={ref} />),
-  Search: forwardRef((props, ref) => <Search {...props} ref={ref} />),
-  SortArrow: forwardRef((props, ref) => <ArrowDownward {...props} ref={ref} />),
-  ThirdStateCheck: forwardRef((props, ref) => <Remove {...props} ref={ref} />),
-  ViewColumn: forwardRef((props, ref) => <ViewColumn {...props} ref={ref} />)
+const accentsMap = {
+  a: "á|à|ã|â|À|Á|Ã|Â",
+
+  e: "é|è|ê|É|È|Ê",
+
+  i: "í|ì|î|Í|Ì|Î",
+
+  o: "ó|ò|ô|õ|Ó|Ò|Ô|Õ",
+
+  u: "ú|ù|û|ü|Ú|Ù|Û|Ü",
+
+  c: "ç|Ç",
+
+  n: "ñ|Ñ"
 };
 
-const api = {
-  url: "https://randomuser.me/api/"
-};
 const useStyles = makeStyles((theme) => ({
   root: {
     marginTop: "10px"
@@ -97,8 +73,8 @@ const useStyles = makeStyles((theme) => ({
 }));
 export default function AppMobile() {
   const classes = useStyles();
-  const [APIData, setAPIData] = useState(null);
-  const [MTData, setMTData] = useState(null);
+  const { APIData } = useContext(DataContext);
+  const [tableData, setTableData] = useState(null);
   const [fakeData, setFakeData] = useState(null);
   const [countryFD, setCountryFD] = useState(null);
   const [page, setPage] = useState(0);
@@ -108,15 +84,18 @@ export default function AppMobile() {
   const fullScreen = useMediaQuery(theme.breakpoints.down("xs"));
   const [anchorEl, setAnchorEl] = React.useState(null);
 
-  const getAPIData = async () => {
-    console.log("get api");
-    const res = await axios.get(`${api.url}?results=50`);
-    setAPIData(res.data.results);
+  const unaccent = (text) => {
+    for (var pattern in accentsMap) {
+      text = text
+
+        .toString()
+
+        .replace(new RegExp(accentsMap[pattern], "g"), pattern);
+    }
+
+    return text;
   };
-  useEffect(() => {
-    console.log("getapi");
-    getAPIData();
-  }, []);
+  /**-------------------------- set FakeData ----------------------- */
   const getCountry = (APIData) => {
     let country = [];
     APIData && APIData.map((c) => country.push({ state: c.location.state }));
@@ -146,13 +125,14 @@ export default function AppMobile() {
         return data;
       });
     setFakeData(data);
-    setMTData(data);
+    setTableData(data);
   };
   useEffect(() => {
     console.log("getFakeData");
     getFakeData(APIData, countryFD);
   }, [APIData, countryFD]);
-  const MTDataLength = MTData && MTData.length;
+  /** ------------------------ set Row Per Page -------------------------------*/
+  const tableDataLength = tableData && tableData.length;
   const icon = <CheckBoxOutlineBlank fontSize="small" />;
   const checkedIcon = <CheckBox fontSize="small" />;
   const handleChangePage = (e, newPage) => {
@@ -162,7 +142,8 @@ export default function AppMobile() {
     setRowsPerPage(parseInt(e.target.value, 10));
     setPage(0);
   };
-  const handleClick = (event) => {
+  /** ------------------------- set filter -----------------------------------*/
+  const handleClickOpen = (event) => {
     setAnchorEl(event.currentTarget);
   };
 
@@ -170,13 +151,13 @@ export default function AppMobile() {
     setAnchorEl(null);
   };
   const handleClickResetFilter = () => {
-    setMTData(fakeData);
+    setTableData(fakeData);
     setOpen(false);
     setAnchorEl(null);
   };
   const handleCLickFilterTen = () => {
     let filterData = fakeData.filter((d) => d.notice >= 10);
-    setMTData(filterData);
+    setTableData(filterData);
     setAnchorEl(null);
   };
   const handleCLickFilterState = (e) => {
@@ -189,22 +170,22 @@ export default function AppMobile() {
       state.push(d.state);
     });
     let filterState = fakeData.filter((d) => _.includes(state, d.state));
-    setMTData(filterState);
+    setTableData(filterState);
   };
   const handleChangeCheckSearch = (e) => {
-    let inputValueSearch = "*" + e.target.value + "*".toLowerCase();
-    let data = [];
-    let filterData;
-    _.forEach(fakeData, function (d) {
-      data.push(Object.values(d));
-      _.forEach(data, function (v) {
-        console.warn("values", v);
-        data.push(v.toString().toLowerCase());
-      });
-      filterData = _.includes(data, inputValueSearch);
-      console.warn("filterData", filterData);
+    let inputValueSearchEpuree = unaccent(e.target.value).toLowerCase();
+
+    let filterData = _.filter(fakeData, function (data) {
+      return Object.values(data).some(
+        (value) =>
+          value &&
+          unaccent(value).toLowerCase().includes(inputValueSearchEpuree)
+      );
     });
+
+    setTableData(filterData);
   };
+  /** ----------------------------- End filter ---------------------------------*/
   return (
     <div style={{ maxWidth: "100%" }}>
       <Box
@@ -217,7 +198,7 @@ export default function AppMobile() {
           <Button
             aria-controls="simple-menu"
             aria-haspopup="true"
-            onClick={handleClick}
+            onClick={handleClickOpen}
           >
             <FilterList />
           </Button>
@@ -256,7 +237,7 @@ export default function AppMobile() {
         </Box>
       </Box>
       <Box
-        display={MTData && open === true ? "block" : "none"}
+        display={tableData && open === true ? "block" : "none"}
         maxWidth="80%"
         ml={10}
         mt={2}
@@ -297,9 +278,10 @@ export default function AppMobile() {
         )}
       </Box>
 
-      {MTData &&
-        MTData.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map(
-          (data) => {
+      {tableData &&
+        tableData
+          .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+          .map((data) => {
             return (
               <Card className={classes.root}>
                 <CardContent>
@@ -339,11 +321,10 @@ export default function AppMobile() {
                 <CardActions></CardActions>
               </Card>
             );
-          }
-        )}
+          })}
       <TablePagination
         rowsPerPageOptions={[5, 10, 20]}
-        count={MTDataLength}
+        count={tableDataLength}
         rowsPerPage={rowsPerPage}
         page={page}
         onChangePage={(e, newPage) => {

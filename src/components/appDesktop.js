@@ -1,4 +1,4 @@
-import React, { useState, useEffect, forwardRef } from "react";
+import React, { useState, useEffect, forwardRef, useContext } from "react";
 import axios from "axios";
 import MaterialTable, { MTableBodyRow } from "material-table";
 import {
@@ -41,6 +41,7 @@ import {
 } from "@material-ui/core";
 import _ from "lodash";
 import { makeStyles } from "@material-ui/styles";
+import { DataContext } from "../context/DataContext";
 
 const tableIcons = {
   Add: forwardRef((props, ref) => <AddBox {...props} ref={ref} />),
@@ -80,8 +81,8 @@ const useStyles = makeStyles((theme) => ({
 }));
 export default function App() {
   const classes = useStyles();
-  const [APIData, setAPIData] = useState(null);
-  const [MTData, setMTData] = useState(null);
+  const { APIData } = useContext(DataContext);
+  const [tableData, setTableData] = useState(null);
   const [fakeData, setFakeData] = useState(null);
   const [countryFD, setCountryFD] = React.useState(null);
   const [selectedRow, setSelectedRow] = useState(null);
@@ -89,15 +90,6 @@ export default function App() {
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down("xs"));
 
-  const getAPIData = async () => {
-    console.log("get api");
-    const res = await axios.get(`${api.url}?results=10`);
-    setAPIData(res.data.results);
-  };
-  useEffect(() => {
-    console.log("getapi");
-    getAPIData();
-  }, []);
   const getCountry = (APIData) => {
     let country = [];
     APIData && APIData.map((c) => country.push(c.location.state));
@@ -136,8 +128,8 @@ export default function App() {
         return data;
       });
     setFakeData(data);
-    setMTData(data);
-    console.warn("MTData", MTData);
+    setTableData(data);
+    console.warn("tableData", tableData);
   };
   useEffect(() => {
     console.log("getFData");
@@ -212,11 +204,11 @@ export default function App() {
     }
   };
   const handleCLickFilter = () => {
-    let filterData = MTData.filter((d) => d.notice >= 10);
-    setMTData(filterData);
+    let filterData = tableData.filter((d) => d.notice >= 10);
+    setTableData(filterData);
   };
   const handleClickResetFilter = () => {
-    setMTData(fakeData);
+    setTableData(fakeData);
   };
   return (
     <div style={{ maxWidth: "100%" }}>
@@ -249,7 +241,7 @@ export default function App() {
             },
             { title: "Categorie", field: "category", type: "numeric" }
           ]}
-          data={MTData}
+          data={tableData}
           components={{
             Row: (props) => {
               return <MTableBodyRow {...props} className={classes.row} />;
