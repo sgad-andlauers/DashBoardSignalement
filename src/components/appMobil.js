@@ -31,6 +31,8 @@ import {
 import Autocomplete from "@material-ui/lab/Autocomplete";
 import _ from "lodash";
 import { makeStyles } from "@material-ui/styles";
+import { getNoticeRendering, getStatusRendering } from "./utils/rendering";
+import DialogTable from "./dialogTable";
 
 const accentsMap = {
   a: "á|à|ã|â|À|Á|Ã|Â",
@@ -50,7 +52,8 @@ const accentsMap = {
 
 const useStyles = makeStyles((theme) => ({
   root: {
-    marginTop: "10px"
+    marginTop: "10px",
+    width: "100%"
   },
   row: {
     backgroundColor: "#fff",
@@ -62,7 +65,7 @@ const useStyles = makeStyles((theme) => ({
   search: {
     display: "flex",
     alignItems: "center",
-    width: 400
+    width: "100%"
   },
   inputSearch: {
     flex: 1
@@ -73,17 +76,16 @@ const useStyles = makeStyles((theme) => ({
 }));
 export default function AppMobile() {
   const classes = useStyles();
-  const { APIData } = useContext(DataContext);
-  const [tableData, setTableData] = useState(null);
-  const [fakeData, setFakeData] = useState(null);
-  const [countryFD, setCountryFD] = useState(null);
+  const { tableData, fakeData, setTableData, countryFDMobil } = useContext(
+    DataContext
+  );
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [selectedRow, setSelectedRow] = useState(null);
   const [open, setOpen] = useState(false);
   const theme = useTheme();
-  const fullScreen = useMediaQuery(theme.breakpoints.down("xs"));
+  const fullScreen = useMediaQuery(theme.breakpoints.down("sm"));
   const [anchorEl, setAnchorEl] = React.useState(null);
-
   const unaccent = (text) => {
     for (var pattern in accentsMap) {
       text = text
@@ -95,42 +97,6 @@ export default function AppMobile() {
 
     return text;
   };
-  /**-------------------------- set FakeData ----------------------- */
-  const getCountry = (APIData) => {
-    let country = [];
-    APIData && APIData.map((c) => country.push({ state: c.location.state }));
-    let finalData = _.uniq(country);
-    setCountryFD(finalData);
-  };
-  useEffect(() => {
-    console.log("getCountry");
-    getCountry(APIData);
-  }, [APIData]);
-  const getFakeData = (APIData, countryFD) => {
-    let data = [];
-    APIData &&
-      countryFD &&
-      APIData.map((d) => {
-        data.push({
-          id: d.id.value,
-          name: d.name.last,
-          address: `${d.location.street.number}, ${d.location.street.name}`,
-          city: d.location.city,
-          postCode: d.location.postcode,
-          status: d.gender,
-          state: d.location.state,
-          notice: d.registered.age,
-          category: d.dob.age
-        });
-        return data;
-      });
-    setFakeData(data);
-    setTableData(data);
-  };
-  useEffect(() => {
-    console.log("getFakeData");
-    getFakeData(APIData, countryFD);
-  }, [APIData, countryFD]);
   /** ------------------------ set Row Per Page -------------------------------*/
   const tableDataLength = tableData && tableData.length;
   const icon = <CheckBoxOutlineBlank fontSize="small" />;
@@ -149,6 +115,7 @@ export default function AppMobile() {
 
   const handleClose = () => {
     setAnchorEl(null);
+    setOpen(false);
   };
   const handleClickResetFilter = () => {
     setTableData(fakeData);
@@ -169,7 +136,7 @@ export default function AppMobile() {
     _.forEach(value, function (d) {
       state.push(d.state);
     });
-    let filterState = fakeData.filter((d) => _.includes(state, d.state));
+    let filterState = fakeData.filter((d) => _.includes(state, d.stateText));
     setTableData(filterState);
   };
   const handleChangeCheckSearch = (e) => {
@@ -186,6 +153,10 @@ export default function AppMobile() {
     setTableData(filterData);
   };
   /** ----------------------------- End filter ---------------------------------*/
+  const handleClickSetDialog = (e, data) => {
+    setOpen(true);
+    setSelectedRow(data);
+  };
   return (
     <div style={{ maxWidth: "100%" }}>
       <Box
@@ -245,11 +216,11 @@ export default function AppMobile() {
         alignItems="center"
         justifyContent="center"
       >
-        {countryFD && (
+        {countryFDMobil && (
           <Autocomplete
             multiple
             id="searchByState"
-            options={countryFD}
+            options={countryFDMobil}
             disableCloseOnSelect
             getOptionLabel={(option) => option.state}
             onChange={(e, value, reason) =>
@@ -283,43 +254,53 @@ export default function AppMobile() {
           .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
           .map((data) => {
             return (
-              <Card className={classes.root}>
-                <CardContent>
-                  <List dense>
-                    <ListItem>
-                      <ListItemAvatar>
-                        <Avatar>No</Avatar>
-                      </ListItemAvatar>
-                      <ListItemText primary={`Nom:  ${data.name}`} />
-                    </ListItem>
-                    <ListItem>
-                      <ListItemAvatar>
-                        <Avatar>St</Avatar>
-                      </ListItemAvatar>
-                      <ListItemText primary={`Statut:  ${data.status}`} />
-                    </ListItem>
-                    <ListItem>
-                      <ListItemAvatar>
-                        <Avatar>Av</Avatar>
-                      </ListItemAvatar>
-                      <ListItemText primary={`Avis:  ${data.notice}`} />
-                    </ListItem>
-                    <ListItem>
-                      <ListItemAvatar>
-                        <Avatar>Et</Avatar>
-                      </ListItemAvatar>
-                      <ListItemText primary={`Etat:  ${data.state}`} />
-                    </ListItem>
-                    <ListItem>
-                      <ListItemAvatar>
-                        <Avatar>Ct</Avatar>
-                      </ListItemAvatar>
-                      <ListItemText primary={`Catégorie:  ${data.category}`} />
-                    </ListItem>
-                  </List>
-                </CardContent>
-                <CardActions></CardActions>
-              </Card>
+              <>
+                <Button
+                  fullWidth
+                  onClick={(e) => {
+                    handleClickSetDialog(e, data);
+                  }}
+                >
+                  <Paper variant="outlined" className={classes.root}>
+                    <List dense>
+                      <ListItem>
+                        <ListItemAvatar>
+                          <Avatar>No</Avatar>
+                        </ListItemAvatar>
+                        <ListItemText primary={`Nom:  ${data.name}`} />
+                      </ListItem>
+                      <ListItem>
+                        <ListItemAvatar>
+                          <Avatar>St</Avatar>
+                        </ListItemAvatar>
+                        <ListItemText primary={`Statut:  ${data.status}`} />
+                      </ListItem>
+                      <ListItem>
+                        <ListItemAvatar>
+                          <Avatar>Av</Avatar>
+                        </ListItemAvatar>
+                        <ListItemText
+                          primary={getNoticeRendering(data.notice)}
+                        />
+                      </ListItem>
+                      <ListItem>
+                        <ListItemAvatar>
+                          <Avatar>Et</Avatar>
+                        </ListItemAvatar>
+                        <ListItemText primary={`Etat:  ${data.stateText}`} />
+                      </ListItem>
+                      <ListItem>
+                        <ListItemAvatar>
+                          <Avatar>Ct</Avatar>
+                        </ListItemAvatar>
+                        <ListItemText
+                          primary={`Catégorie:  ${data.category}`}
+                        />
+                      </ListItem>
+                    </List>
+                  </Paper>
+                </Button>
+              </>
             );
           })}
       <TablePagination
@@ -334,106 +315,14 @@ export default function AppMobile() {
           handleChangeRowsPerPage(e);
         }}
       />
-
-      {/** 
-        <Dialog
-          fullScreen={fullScreen}
+      {selectedRow && (
+        <DialogTable
+          selectedRow={selectedRow}
           open={open}
-          onClose={handleClose}
-          aria-labelledby="responsive-dialog-title"
-          size="large"
-        >
-          <DialogTitle id="responsive-dialog-title">
-            {"Info ligne selectionné"}
-          </DialogTitle>
-          <DialogContent>
-            <DialogContentText>
-              <Grid container spacing={1}>
-                <Grid item xs={10} md={4}>
-                  <div>
-                    <List dense>
-                      <ListItem>
-                        <ListItemAvatar>
-                          <Avatar>Id</Avatar>
-                        </ListItemAvatar>
-                        <ListItemText
-                          primary={`ìd de l'entreprise : ${selectedRow.id}`}
-                        />
-                      </ListItem>
-                      <ListItem>
-                        <ListItemAvatar>
-                          <Avatar>No</Avatar>
-                        </ListItemAvatar>
-                        <ListItemText
-                          primary={`nom de l'entreprise:  ${selectedRow.name}`}
-                        />
-                      </ListItem>
-                      <ListItem>
-                        <ListItemAvatar>
-                          <Avatar>Ad</Avatar>
-                        </ListItemAvatar>
-                        <ListItemText
-                          primary={`Adresse de l'entreprise: ${selectedRow.address}`}
-                        />
-                      </ListItem>
-                      <ListItem>
-                        <ListItemAvatar>
-                          <Avatar>Cp</Avatar>
-                        </ListItemAvatar>
-                        <ListItemText
-                          primary={`Code postal: ${selectedRow.postCode}`}
-                        />
-                      </ListItem>
-                    </List>
-                  </div>
-                </Grid>
-                <Grid item xs={10} md={4}>
-                  <div>
-                    <List dense>
-                      <ListItem>
-                        <ListItemAvatar>
-                          <Avatar>Vi</Avatar>
-                        </ListItemAvatar>
-                        <ListItemText primary={`Ville : ${selectedRow.city}`} />
-                      </ListItem>
-                      <ListItem>
-                        <ListItemAvatar>
-                          <Avatar>St</Avatar>
-                        </ListItemAvatar>
-                        <ListItemText
-                          primary={`Statut de l'entreprise: ${selectedRow.status}`}
-                        />
-                      </ListItem>
-                      <ListItem>
-                        <ListItemAvatar>
-                          <Avatar>Av</Avatar>
-                        </ListItemAvatar>
-                        <ListItemText
-                          primary={`Avis de l'entreprise: ${selectedRow.state}`}
-                        />
-                      </ListItem>
-                      <ListItem>
-                        <ListItemAvatar>
-                          <Avatar>Ct</Avatar>
-                        </ListItemAvatar>
-                        <ListItemText
-                          primary={`Catégorie de l'entreprise: ${selectedRow.category}`}
-                        />
-                      </ListItem>
-                    </List>
-                  </div>
-                </Grid>
-              </Grid>
-            </DialogContentText>
-          </DialogContent>
-          <DialogActions>
-            <Button autoFocus onClick={handleClose} color="primary">
-              Close
-            </Button>
-          </DialogActions>
-        </Dialog>
+          onClickClose={handleClose}
+          fullScreen={fullScreen}
+        />
       )}
-      */}
     </div>
   );
 }

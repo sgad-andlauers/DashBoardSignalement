@@ -19,21 +19,10 @@ import {
   ViewColumn
 } from "@material-ui/icons";
 import {
-  Dialog,
   Box,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
   useMediaQuery,
-  useTheme,
   Button,
-  List,
-  ListItem,
-  ListItemAvatar,
-  ListItemText,
-  Avatar,
-  Grid,
+  useTheme,
   Typography,
   Switch,
   Chip,
@@ -42,7 +31,8 @@ import {
 import _ from "lodash";
 import { makeStyles } from "@material-ui/styles";
 import { DataContext } from "../context/DataContext";
-
+import DialogTable from "./dialogTable";
+import { getNoticeRendering, getStatusRendering } from "./utils/rendering";
 const tableIcons = {
   Add: forwardRef((props, ref) => <AddBox {...props} ref={ref} />),
   Check: forwardRef((props, ref) => <Check {...props} ref={ref} />),
@@ -66,10 +56,6 @@ const tableIcons = {
   ThirdStateCheck: forwardRef((props, ref) => <Remove {...props} ref={ref} />),
   ViewColumn: forwardRef((props, ref) => <ViewColumn {...props} ref={ref} />)
 };
-
-const api = {
-  url: "https://randomuser.me/api/"
-};
 const useStyles = makeStyles((theme) => ({
   row: {
     backgroundColor: "#fff",
@@ -81,60 +67,13 @@ const useStyles = makeStyles((theme) => ({
 }));
 export default function App() {
   const classes = useStyles();
-  const { APIData } = useContext(DataContext);
-  const [tableData, setTableData] = useState(null);
-  const [fakeData, setFakeData] = useState(null);
-  const [countryFD, setCountryFD] = React.useState(null);
+  const { tableData, fakeData, setTableData, countryFDDesc } = useContext(
+    DataContext
+  );
   const [selectedRow, setSelectedRow] = useState(null);
-  const [open, setOpen] = React.useState(false);
+  const [open, setOpen] = useState(false);
   const theme = useTheme();
-  const fullScreen = useMediaQuery(theme.breakpoints.down("xs"));
-
-  const getCountry = (APIData) => {
-    let country = [];
-    APIData && APIData.map((c) => country.push(c.location.state));
-    let resData = _.uniq(country);
-    let finalData = _.mapKeys(resData.sort(), function (key, value) {
-      return value;
-    });
-    setCountryFD(finalData);
-  };
-  useEffect(() => {
-    console.log("getCountry");
-    getCountry(APIData);
-  }, [APIData]);
-
-  const getFakeData = (APIData, countryFD) => {
-    let data = [];
-    APIData &&
-      countryFD &&
-      APIData.map((d) => {
-        data.push({
-          id: `${d.id.value}`,
-          name: `${d.name.last}`,
-          address: `${d.location.street.number}, ${d.location.street.name}`,
-          city: `${d.location.city}`,
-          postCode: `${d.location.postcode}`,
-          status: `${d.gender}`,
-          state: parseInt(
-            Object.keys(countryFD).find(
-              (key) => countryFD[key] === d.location.state
-            ),
-            10
-          ),
-          notice: `${d.registered.age}`,
-          category: `${d.dob.age}`
-        });
-        return data;
-      });
-    setFakeData(data);
-    setTableData(data);
-    console.warn("tableData", tableData);
-  };
-  useEffect(() => {
-    console.log("getFData");
-    getFakeData(APIData, countryFD);
-  }, [APIData, countryFD]);
+  const fullScreen = useMediaQuery(theme.breakpoints.down("ml"));
 
   const handleClose = () => {
     setOpen(false);
@@ -143,35 +82,7 @@ export default function App() {
     setSelectedRow(selectedRow);
     setOpen(true);
   };
-  const getStatusRendering = (rowData) => {
-    if (rowData.tableData.id === 0) {
-      return <Switch checked />;
-    }
-    return rowData.status === "female" ? (
-      <Tooltip title="female">
-        <Check />
-      </Tooltip>
-    ) : (
-      <Tooltip title="male">
-        <Remove />
-      </Tooltip>
-    );
-  };
-  const getNoticeRendering = (rowData) => {
-    if (rowData.notice <= 5) {
-      return (
-        <Chip label={rowData.notice} style={{ backgroundColor: "#d50000" }} />
-      );
-    } else if (rowData.notice <= 10) {
-      return (
-        <Chip label={rowData.notice} style={{ backgroundColor: "#ff9800" }} />
-      );
-    } else if (rowData.notice > 10) {
-      return (
-        <Chip label={rowData.notice} style={{ backgroundColor: "#388e3c" }} />
-      );
-    }
-  };
+
   const handleNameChange = (rowData) => {
     if (rowData.tableData.id === 0) {
       return (
@@ -212,7 +123,7 @@ export default function App() {
   };
   return (
     <div style={{ maxWidth: "100%" }}>
-      {countryFD && (
+      {countryFDDesc && (
         <MaterialTable
           title="test affichage desktop !"
           icons={tableIcons}
@@ -233,11 +144,11 @@ export default function App() {
               field: "status",
               render: (rowData) => getStatusRendering(rowData)
             },
-            { title: "Etat", field: "state", lookup: countryFD },
+            { title: "Etat", field: "stateId", lookup: countryFDDesc },
             {
               title: "Avis",
               field: "notice",
-              render: (rowData) => getNoticeRendering(rowData)
+              render: (rowData) => getNoticeRendering(rowData.notice)
             },
             { title: "Categorie", field: "category", type: "numeric" }
           ]}
@@ -286,102 +197,12 @@ export default function App() {
       </Box>
 
       {selectedRow && (
-        <Dialog
-          fullScreen={fullScreen}
+        <DialogTable
+          selectedRow={selectedRow}
           open={open}
-          onClose={handleClose}
-          aria-labelledby="responsive-dialog-title"
-          size="large"
-        >
-          <DialogTitle id="responsive-dialog-title">
-            {"Info ligne selectionné"}
-          </DialogTitle>
-          <DialogContent>
-            <DialogContentText>
-              <Grid container spacing={1}>
-                <Grid item xs={10} md={4}>
-                  <div>
-                    <List dense>
-                      <ListItem>
-                        <ListItemAvatar>
-                          <Avatar>Id</Avatar>
-                        </ListItemAvatar>
-                        <ListItemText
-                          primary={`ìd de l'entreprise : ${selectedRow.id}`}
-                        />
-                      </ListItem>
-                      <ListItem>
-                        <ListItemAvatar>
-                          <Avatar>No</Avatar>
-                        </ListItemAvatar>
-                        <ListItemText
-                          primary={`nom de l'entreprise:  ${selectedRow.name}`}
-                        />
-                      </ListItem>
-                      <ListItem>
-                        <ListItemAvatar>
-                          <Avatar>Ad</Avatar>
-                        </ListItemAvatar>
-                        <ListItemText
-                          primary={`Adresse de l'entreprise: ${selectedRow.address}`}
-                        />
-                      </ListItem>
-                      <ListItem>
-                        <ListItemAvatar>
-                          <Avatar>Cp</Avatar>
-                        </ListItemAvatar>
-                        <ListItemText
-                          primary={`Code postal: ${selectedRow.postCode}`}
-                        />
-                      </ListItem>
-                    </List>
-                  </div>
-                </Grid>
-                <Grid item xs={10} md={4}>
-                  <div>
-                    <List dense>
-                      <ListItem>
-                        <ListItemAvatar>
-                          <Avatar>Vi</Avatar>
-                        </ListItemAvatar>
-                        <ListItemText primary={`Ville : ${selectedRow.city}`} />
-                      </ListItem>
-                      <ListItem>
-                        <ListItemAvatar>
-                          <Avatar>St</Avatar>
-                        </ListItemAvatar>
-                        <ListItemText
-                          primary={`Statut de l'entreprise: ${selectedRow.status}`}
-                        />
-                      </ListItem>
-                      <ListItem>
-                        <ListItemAvatar>
-                          <Avatar>Av</Avatar>
-                        </ListItemAvatar>
-                        <ListItemText
-                          primary={`Avis de l'entreprise: ${selectedRow.state}`}
-                        />
-                      </ListItem>
-                      <ListItem>
-                        <ListItemAvatar>
-                          <Avatar>Ct</Avatar>
-                        </ListItemAvatar>
-                        <ListItemText
-                          primary={`Catégorie de l'entreprise: ${selectedRow.category}`}
-                        />
-                      </ListItem>
-                    </List>
-                  </div>
-                </Grid>
-              </Grid>
-            </DialogContentText>
-          </DialogContent>
-          <DialogActions>
-            <Button autoFocus onClick={handleClose} color="primary">
-              Close
-            </Button>
-          </DialogActions>
-        </Dialog>
+          onClickClose={handleClose}
+          fullScreen={fullScreen}
+        />
       )}
     </div>
   );
